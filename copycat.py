@@ -8,16 +8,18 @@ config = {
     'mountdir': "/media/copycat",
     'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?"],
     'blacklist': [],
-    'hardlink': True
+    'hardlink': True,
+    'debug': True,
 }
 
 def Ex(command):
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     c = p.communicate()
-    #if c[0] is not None:
-    #    print ("INFO: {}".format(c[0]))
-    #if c[1] is not None:
-    #    print ("ERROR: {}".format(c[1]))
+    if config['debug']:
+        if c[0] is not None:
+            print ("INFO: {}".format(c[0]))
+        if c[1] is not None:
+            print ("ERROR: {}".format(c[1]))
     return c[0]
 
 
@@ -58,7 +60,8 @@ def hash_file(file, partial = False):
 
 
 def copyfile(location, subdir, file, backuptimestamp, q, numtry = 1):
-    #print ("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
+    if config['debug']:
+        print ("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, file)))
         return
@@ -77,11 +80,13 @@ def copyfile(location, subdir, file, backuptimestamp, q, numtry = 1):
         db_hash_table = ['TODO']
         if pre_copy_file_hash in db_hash_table:
             existingfile = db_hash_table[pre_copy_file_hash]
-            #q.put("DEBUG: ln {} {}".format(existingfile, dest))
+            if config['debug']:
+                q.put("DEBUG: ln {} {}".format(existingfile, dest))
             Ex(["ln", existingfile, dest])
             return
 
-    #q.put("DEBUG: {}".format(" ".join(["cp", src, dest])))
+    if config['debug']:
+        q.put("DEBUG: {}".format(" ".join(["cp", src, dest])))
     Ex(["cp", src, dest])
     post_copy_file_hash = hash_file(dest, hash_is_partial)
 
@@ -141,7 +146,8 @@ if __name__ == '__main__':
     while True:
         time.sleep(3)
         current_disks = get_disks()
-        #print ("Disks: {}".format(current_disks))
+        if config['debug']:
+            print ("Disks already there at startup: {}".format(current_disks))
         for disk in current_disks:
             if disk not in last_disks:
                 if disk not in config['blacklist']:
