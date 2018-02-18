@@ -17,9 +17,9 @@ def Ex(command):
     c = p.communicate()
     if config['debug']:
         if c[0] is not None:
-            print ("INFO: {}".format(c[0]))
+            print ("STDOUT: {}".format(c[0]))
         if c[1] is not None:
-            print ("ERROR: {}".format(c[1]))
+            print ("STDERR: {}".format(c[1]))
     return c[0]
 
 
