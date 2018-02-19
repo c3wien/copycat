@@ -2,6 +2,7 @@
 
 import time, os, sys, hashlib, subprocess, glob, queue, shutil
 from multiprocessing import Process, Queue
+import platform
 
 config = {
     'backupdir': "/tmp/copycat",
@@ -115,11 +116,25 @@ def backup(disk, q):
 
     backuptimestamp = time.strftime("%Y-%m-%d_%H_%M-%S")
 
+    ostype = platform.system()
+    fstypes = None
+    if (ostype == 'FreeBSD'):
+        # Kernel modules
+        # ext2fs: ext2, ext3, ext4
+        # fuse,exfat-fuse: exfat
+        # fusefs-ntfs: ntfs
+        fstypes = "msdosfs,exfat,ntfs"
+
     partitions = get_partitions(disk)
     
     if len(partitions) == 0:
         q.put("Mount and backup disk {}.".format(disk))
-        Ex(["mount", "-o", "ro", disk, disklocation])
+        if (fstypes is not None):
+            # Mount with specific fstypes enabled
+            Ex(["mount", "-t", fstypes, "-o", "ro", disk, disklocation])
+        else:
+            # Mount with fstype autodetected
+            Ex(["mount", "-o", "ro", disk, disklocation])
         backup_dir(disklocation, "", backuptimestamp, q)
         Ex(["umount", disklocation])
         os.rmdir(disklocation)
@@ -131,7 +146,12 @@ def backup(disk, q):
             os.mkdir(partitionlocation)
 
             q.put("Mount and backup partition {}.".format(partition))
-            Ex(["mount", partition, partitionlocation])
+            if (fstypes is not None):
+                # Mount with specific fstypes enabled
+                Ex(["mount", "-t", fstypes, "-o", "ro", partition, partitionlocation])
+            else:
+                # Mount with fstype autodetected
+                Ex(["mount", "-o", "ro", partition, partitionlocation])
             time.sleep(2)
             backup_dir(partitionlocation, "", backuptimestamp, q)
             Ex(["umount", partitionlocation])
