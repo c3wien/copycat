@@ -6,7 +6,7 @@ from multiprocessing import Process, Queue
 config = {
     'backupdir': "/tmp/copycat",
     'mountdir': "/media/copycat",
-    'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?"],
+    'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "dev/ada?"],
     'blacklist': [],
     'hardlink': True,
     'debug': True,
