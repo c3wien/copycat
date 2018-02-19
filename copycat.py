@@ -119,7 +119,7 @@ def backup(disk, q):
     
     if len(partitions) == 0:
         q.put("Mount and backup disk {}.".format(disk))
-        Ex(["mount", disk, disklocation])
+        Ex(["mount", "-o", "ro", disk, disklocation])
         backup_dir(disklocation, "", backuptimestamp, q)
         Ex(["umount", disklocation])
         os.rmdir(disklocation)
