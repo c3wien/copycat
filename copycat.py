@@ -142,12 +142,14 @@ if __name__ == '__main__':
     processes = []
     q = Queue()
     last_disks = get_disks()
+    if config['debug']:
+        print ("Disks already there at startup: {}".format(current_disks))
 
     while True:
         time.sleep(3)
         current_disks = get_disks()
         if config['debug']:
-            print ("Disks already there at startup: {}".format(current_disks))
+            print ("Disks known: {}".format(current_disks))
         for disk in current_disks:
             if disk not in last_disks:
                 if disk not in config['blacklist']:
