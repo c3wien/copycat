@@ -143,7 +143,7 @@ if __name__ == '__main__':
     q = Queue()
     last_disks = get_disks()
     if config['debug']:
-        print ("Disks already there at startup: {}".format(current_disks))
+        print ("Disks already there at startup: {}".format(last_disks))
 
     while True:
         time.sleep(3)
