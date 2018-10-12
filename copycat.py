@@ -134,9 +134,9 @@ def backup(disk, q):
     fstypes = None
     if (ostype == 'FreeBSD'):
         # Kernel modules
-        # ext2fs: ext2, ext3, ext4
-        # fuse,exfat-fuse: exfat
-        # fusefs-ntfs: ntfs
+        # ext2fs: ext2, ext3, ext4 (pkg: fusefs-ext2)
+        # fuse,exfat-fuse: exfat (port: fusefs-exfat)
+        # fusefs-ntfs: ntfs (pkg: fusefs-ntfs)
         fstypes = "msdosfs,exfat,ntfs"
 
     partitions = get_partitions(disk)
