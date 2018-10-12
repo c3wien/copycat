@@ -3,6 +3,7 @@
 import time, os, sys, hashlib, subprocess, glob, queue, shutil
 from multiprocessing import Process, Queue
 import platform
+import sqlite3
 
 config = {
     'backupdir': "/tmp/copycat",
@@ -60,9 +61,9 @@ def hash_file(file, partial = False):
     return None
 
 
-def copyfile(location, subdir, file, backuptimestamp, q, numtry = 1):
+def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     if config['debug']:
-        print ("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
+        q.put("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, file)))
         return
@@ -92,10 +93,17 @@ def copyfile(location, subdir, file, backuptimestamp, q, numtry = 1):
     post_copy_file_hash = hash_file(dest, hash_is_partial)
 
     if pre_copy_file_hash is None or post_copy_file_hash is None or pre_copy_file_hash != post_copy_file_hash:
-        copyfile(location, subdir, file, backuptimestamp, q, numtry = numtry + 1)
+        # file hash does not match
+        copyfile(location, subdir, file, backuptimestamp, q, db, numtry = numtry + 1)
+    else:
+        # file hash matches, ensure file is recorded in database
+        cur = db.cursor()
+        info = (post_copy_file_hash, backuptimestamp, src, dest)
+        cur.execute("INSERT INTO files (hash, backuptime, source, target) VALUES (?, ?, ?, ?);", info)
+        db.commit()
 
 
-def backup_dir(srcmount, location, backuptimestamp, q):
+def backup_dir(srcmount, location, backuptimestamp, q, db = None):
     sourcedir = os.path.join(srcmount, location)
     backupdir = os.path.join(config['backupdir'], backuptimestamp)
     os.makedirs(backupdir, exist_ok=True)
@@ -103,10 +111,10 @@ def backup_dir(srcmount, location, backuptimestamp, q):
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
         nfile = os.path.join(sourcedir,file)
         if os.path.isdir(nfile):
-            backup_dir(srcmount, nfile, backuptimestamp, q)
+            backup_dir(srcmount, nfile, backuptimestamp, q, db)
         elif os.path.isfile(nfile):
             subdir = location.lstrip(srcmount).lstrip(os.sep)
-            copyfile(srcmount, subdir, file, backuptimestamp, q)
+            copyfile(srcmount, subdir, file, backuptimestamp, q, db)
 
 
 def backup(disk, q):
@@ -115,6 +123,12 @@ def backup(disk, q):
     os.makedirs(disklocation)
 
     backuptimestamp = time.strftime("%Y-%m-%d_%H_%M-%S")
+
+    db = sqlite3.connect(os.path.join(config['backupdir'], 'files.db'))
+    # ensure table is present
+    cur = db.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS files (hash TEXT, backuptime TEXT, source TEXT, target TEXT);")
+    db.commit()
 
     ostype = platform.system()
     fstypes = None
@@ -135,7 +149,7 @@ def backup(disk, q):
         else:
             # Mount with fstype autodetected
             Ex(["mount", "-o", "ro", disk, disklocation])
-        backup_dir(disklocation, "", backuptimestamp, q)
+        backup_dir(disklocation, "", backuptimestamp, q, db)
         Ex(["umount", disklocation])
         os.rmdir(disklocation)
     else:
@@ -153,7 +167,7 @@ def backup(disk, q):
                 # Mount with fstype autodetected
                 Ex(["mount", "-o", "ro", partition, partitionlocation])
             time.sleep(2)
-            backup_dir(partitionlocation, "", backuptimestamp, q)
+            backup_dir(partitionlocation, "", backuptimestamp, q, db)
             Ex(["umount", partitionlocation])
             os.rmdir(partitionlocation)
 
