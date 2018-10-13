@@ -179,6 +179,9 @@ if __name__ == '__main__':
     if config['debug']:
         print ("Disks already there at startup: {}".format(last_disks))
 
+    # ensure backup directory exists
+    os.makedirs(config['backupdir'])
+
     while True:
         time.sleep(3)
         current_disks = get_disks()
