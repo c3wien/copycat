@@ -211,15 +211,19 @@ if __name__ == '__main__':
             if process.exitcode is None:
                 still_running.append((disk, process))
             elif process.exitcode == 0:
+                Ex(['sync'])
                 print ("Disk backup of disk {} has finished.".format(disk))
                 continue
             elif process.exitcode < 0:
+                Ex(['sync'])
                 print ("Disk backup process died from signal {}".format(process.exitcode))
                 continue
             elif process.exitcode > 0:
+                Ex(['sync'])
                 print ("Disk backup process terminated with exit code {}".format(process.exitcode))
                 continue
             else:
+                Ex(['sync'])
                 print ("Unknown exitcode: {}".format(process.exitcode))
         processes = still_running
         last_disks = current_disks
