@@ -180,7 +180,7 @@ if __name__ == '__main__':
         print ("Disks already there at startup: {}".format(last_disks))
 
     # ensure backup directory exists
-    os.makedirs(config['backupdir'])
+    os.makedirs(config['backupdir'], exist_ok=True)
 
     while True:
         time.sleep(3)
