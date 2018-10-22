@@ -6,7 +6,7 @@ import platform
 import sqlite3
 
 config = {
-    'backupdir': "/tmp/copycat",
+    'backupdir': "/mnt/copycat",
     'mountdir': "/media/copycat",
     'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"],
     'blacklist': [],
