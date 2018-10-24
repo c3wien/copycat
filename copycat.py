@@ -106,15 +106,15 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
         db.commit()
 
 
-def backup_dir(srcmount, location, backuptimestamp, q, db = None):
+def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
     sourcedir = os.path.join(srcmount, location)
-    backupdir = os.path.join(config['backupdir'], backuptimestamp)
+    backupdir = os.path.join(config['backupdir'], backuptimestamp, disk_name)
     os.makedirs(backupdir, exist_ok=True)
 
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
         nfile = os.path.join(sourcedir,file)
         if os.path.isdir(nfile):
-            backup_dir(srcmount, nfile, backuptimestamp, q, db)
+            backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, db)
         elif os.path.isfile(nfile):
             subdir = location.lstrip(srcmount).lstrip(os.sep)
             copyfile(srcmount, subdir, file, backuptimestamp, q, db)
@@ -152,14 +152,17 @@ def backup(disk, q):
         else:
             # Mount with fstype autodetected
             Ex(["mount", "-o", "ro", disk, disklocation])
-        backup_dir(disklocation, "", backuptimestamp, q, db)
+        # disk name
+        disk_name = disk.split(os.sep)[-1]
+        backup_dir(disk_name, disklocation, "", backuptimestamp, q, db)
         Ex(["umount", disklocation])
         os.rmdir(disklocation)
     else:
         for partition in partitions:
             if partition == disk:
                 continue
-            partitionlocation = os.path.join(disklocation, partition.split(os.sep)[-1])
+            partition_name = partition.split(os.sep)[-1]
+            partitionlocation = os.path.join(disklocation, partition_name)
             os.mkdir(partitionlocation)
 
             q.put("Mount and backup partition {}.".format(partition))
@@ -170,7 +173,7 @@ def backup(disk, q):
                 # Mount with fstype autodetected
                 Ex(["mount", "-o", "ro", partition, partitionlocation])
             time.sleep(2)
-            backup_dir(partitionlocation, "", backuptimestamp, q, db)
+            backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, db)
             Ex(["umount", partitionlocation])
             os.rmdir(partitionlocation)
 
