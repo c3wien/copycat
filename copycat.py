@@ -34,6 +34,7 @@ def get_free_space_in_dir(dir):
     state['inodes_free'] = statfs.f_ffree
     state['bytes_free'] = statfs.f_bfree * statfs.f_bsize
     state['bytes_avail'] = statfs.f_bavail * statfs.f_bsize
+    return state
 
 def get_disks():
     disks = []
