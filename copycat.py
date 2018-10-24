@@ -25,6 +25,15 @@ def Ex(command):
             print ("STDERR: {}".format(c[1]))
     return c[0]
 
+def get_free_space_in_dir(dir):
+    statfs = os.statvfs(dir)
+    state = {}
+    state['blocks_free'] = statfs.f_bfree
+    state['blocks_avail'] = statfs.f_bfree
+    state['blocksize'] = statfs.f_bsize
+    state['inodes_free'] = statfs.f_ffree
+    state['bytes_free'] = statfs.f_bfree * statfs.f_bsize
+    state['bytes_avail'] = statfs.f_bavail * statfs.f_bsize
 
 def get_disks():
     disks = []
@@ -191,8 +200,19 @@ if __name__ == '__main__':
     while True:
         time.sleep(3)
         current_disks = get_disks()
+        # show current state of disk list
         if config['debug']:
             print ("Disks known: {}".format(current_disks))
+        # check for enough free space
+        free_space = get_free_space_in_dir(config['backupdir'])
+        # check if there are at least 8192 free inodes
+        if (free_space['inodes_free'] < (8*1024)):
+            print ("WARNING: only {} free inodes for backuptarget {}!".format(free_space['inodes_free'], config['backupdir']))
+        # check if at least 1GB is free
+        if (free_space['bytes_avail'] < (10*1024*1024*1024)):
+            free_mib = free_space['bytes_avail'] / 1024 / 1024
+            print ("WARNING: only {} MiB free for backuptarget {}!".format(free_mib, config['backupdir']))
+        # iterate over known disks
         for disk in current_disks:
             if disk not in last_disks:
                 if disk not in config['blacklist']:
@@ -218,15 +238,15 @@ if __name__ == '__main__':
                 still_running.append((disk, process))
             elif process.exitcode == 0:
                 Ex(['sync'])
-                print ("Disk backup of disk {} has finished.".format(disk))
+                print ("Backup of disk {} has finished.".format(disk))
                 continue
             elif process.exitcode < 0:
                 Ex(['sync'])
-                print ("Disk backup process died from signal {}".format(process.exitcode))
+                print ("Backup process died from signal {}".format(process.exitcode))
                 continue
             elif process.exitcode > 0:
                 Ex(['sync'])
-                print ("Disk backup process terminated with exit code {}".format(process.exitcode))
+                print ("Backup process terminated with exit code {}".format(process.exitcode))
                 continue
             else:
                 Ex(['sync'])
