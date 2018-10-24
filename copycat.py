@@ -12,6 +12,7 @@ config = {
     'blacklist': [],
     'hardlink': True,
     'debug': True,
+    'verbose': True,
 }
 
 def Ex(command):
@@ -62,7 +63,9 @@ def hash_file(file, partial = False):
 
 
 def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
-    if config['debug']:
+    if config['verbose']:
+        q.put("copying: {} {} {}".format(location, subdir, file))
+    elif config['debug']:
         q.put("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, file)))
