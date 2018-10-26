@@ -149,7 +149,8 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
 def backup(disk, q, db):
     disklocation = os.path.join(config['mountdir'], disk.split(os.sep)[-1])
     # remove (sub-)directories previously mounted there
-    os.removedirs(disklocation)
+    if (os.path.exists(disklocation) and os.path.isdir(disklocation)):
+        os.removedirs(disklocation)
 
     # recreate the directory
     os.makedirs(disklocation)
