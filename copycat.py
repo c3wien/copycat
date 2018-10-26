@@ -83,7 +83,7 @@ def hash_file(file, partial = False):
     return None
 
 
-def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
+def copyfile(disk_name, location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     if config.getboolean('verbose'):
         q.put("copying: {} {}".format(subdir, file))
     elif config.getboolean('debug'):
@@ -91,7 +91,7 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, subdir, file)))
         return
-    backuplocation = os.path.join(config['backupdir'], backuptimestamp)
+    backuplocation = os.path.join(config['backupdir'], backuptimestamp, disk_name)
     src = os.path.join(location, subdir, file)
     dest = os.path.join(backuplocation, subdir, file)
     os.makedirs(os.path.join(backuplocation, subdir), exist_ok=True)
@@ -121,7 +121,7 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
 
     if pre_copy_file_hash is None or post_copy_file_hash is None or pre_copy_file_hash != post_copy_file_hash:
         # file hash does not match
-        copyfile(location, subdir, file, backuptimestamp, q, db, numtry = numtry + 1)
+        copyfile(disk_name, location, subdir, file, backuptimestamp, q, db, numtry = numtry + 1)
     else:
         if config.getboolean('verbose'):
             q.put("copied: {}".format(file))
@@ -143,7 +143,7 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
             backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, db)
         elif os.path.isfile(nfile):
             subdir = location.lstrip(srcmount).lstrip(os.sep)
-            copyfile(srcmount, subdir, file, backuptimestamp, q, db)
+            copyfile(disk_name, srcmount, subdir, file, backuptimestamp, q, db)
 
 
 def backup(disk, q, db):
