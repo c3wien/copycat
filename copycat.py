@@ -4,21 +4,29 @@ import time, os, sys, hashlib, subprocess, glob, queue, shutil
 from multiprocessing import Process, Queue
 import platform
 import sqlite3
+import configparser
 
-config = {
+cp = configparser.ConfigParser()
+
+cp['copycat'] = {
     'backupdir': "/mnt/copycat",
     'mountdir': "/media/copycat",
     'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"],
     'blacklist': [],
     'hardlink': True,
-    'debug': True,
+    'debug': False,
     'verbose': True,
 }
+
+with open('config.ini', 'r') as configfile:
+    cp.read(configfile)
+
+config = cp['copycat']
 
 def Ex(command):
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     c = p.communicate()
-    if config['debug']:
+    if config.getboolean('debug'):
         if c[0] is not None:
             print ("STDOUT: {}".format(c[0]))
         if c[1] is not None:
@@ -73,9 +81,9 @@ def hash_file(file, partial = False):
 
 
 def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
-    if config['verbose']:
-        q.put("copying: {} {} {}".format(location, subdir, file))
-    elif config['debug']:
+    if config.getboolean('verbose'):
+        q.put("copying: {} {} {}".format(subdir, file))
+    elif config.getboolean('debug'):
         q.put("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, file)))
@@ -192,7 +200,7 @@ if __name__ == '__main__':
     processes = []
     q = Queue()
     last_disks = get_disks()
-    if config['debug']:
+    if config.getboolean('debug'):
         print ("Disks already there at startup: {}".format(last_disks))
 
     # ensure backup directory exists
@@ -202,7 +210,7 @@ if __name__ == '__main__':
         time.sleep(3)
         current_disks = get_disks()
         # show current state of disk list
-        if config['debug']:
+        if config.getboolean('debug'):
             print ("Disks known: {}".format(current_disks))
         # check for enough free space
         free_space = get_free_space_in_dir(config['backupdir'])
