@@ -6,16 +6,16 @@ import platform
 import sqlite3
 import configparser
 
-cp = configparser.ConfigParser()
+cp = configparser.ConfigParser(default_section='copycat')
 
 cp['copycat'] = {
     'backupdir': "/mnt/copycat",
     'mountdir': "/media/copycat",
-    'diskpatterns': ["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"],
-    'blacklist': [],
-    'hardlink': True,
-    'debug': False,
-    'verbose': True,
+    'patterns': json.dumps(["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"]),
+    'blacklist': "",
+    'hardlink': "yes",
+    'debug': "no",
+    'verbose': "yes",
 }
 
 with open('config.ini', 'r') as configfile:
@@ -46,7 +46,8 @@ def get_free_space_in_dir(dir):
 
 def get_disks():
     disks = []
-    for pattern in config['diskpatterns']:
+    patterns = json.loads(config.get('patterns'))
+    for pattern in patterns:
         patterndisks = glob.glob(pattern)
         for disk in patterndisks:
             disks.append(disk)
@@ -92,11 +93,14 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     src = os.path.join(location, subdir, file)
     dest = os.path.join(backuplocation, subdir, file)
     os.makedirs(os.path.join(backuplocation, subdir), exist_ok=True)
+
+    # partial hashing for files bigger than 32 MiB
     hash_is_partial = False
     fstat = os.stat(src)
     if fstat.st_size > 33554432:
         hash_is_partial = True
     
+    # hash file
     pre_copy_file_hash = hash_file(src, hash_is_partial)
 
     if config.getboolean('hardlink'):
