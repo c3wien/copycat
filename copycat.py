@@ -86,7 +86,7 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     elif config.getboolean('debug'):
         q.put("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
-        q.put("Could not copy {}".format(os.path.join(location, file)))
+        q.put("Could not copy {}".format(os.path.join(location, subdir, file)))
         return
     backuplocation = os.path.join(config['backupdir'], backuptimestamp)
     src = os.path.join(location, subdir, file)
@@ -99,24 +99,26 @@ def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     
     pre_copy_file_hash = hash_file(src, hash_is_partial)
 
-    if config['hardlink'] == True:
+    if config.getboolean('hardlink'):
         db_hash_table = ['TODO']
         if pre_copy_file_hash in db_hash_table:
             existingfile = db_hash_table[pre_copy_file_hash]
-            if config['debug']:
+            if config.getboolean('debug'):
                 q.put("DEBUG: ln {} {}".format(existingfile, dest))
             Ex(["ln", existingfile, dest])
             return
 
-    if config['debug']:
-        q.put("DEBUG: {}".format(" ".join(["cp", src, dest])))
-    Ex(["cp", src, dest])
+    if config.getboolean('debug'):
+        q.put("DEBUG: {}".format(" ".join(["cp", "-a", src, dest])))
+    Ex(["cp", "-a", src, dest])
     post_copy_file_hash = hash_file(dest, hash_is_partial)
 
     if pre_copy_file_hash is None or post_copy_file_hash is None or pre_copy_file_hash != post_copy_file_hash:
         # file hash does not match
         copyfile(location, subdir, file, backuptimestamp, q, db, numtry = numtry + 1)
     else:
+        if config.getboolean('verbose'):
+            q.put("copied: {}".format(file))
         # file hash matches, ensure file is recorded in database
         cur = db.cursor()
         info = (post_copy_file_hash, backuptimestamp, src, dest)
@@ -138,18 +140,15 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
             copyfile(srcmount, subdir, file, backuptimestamp, q, db)
 
 
-def backup(disk, q):
+def backup(disk, q, db):
     disklocation = os.path.join(config['mountdir'], disk.split(os.sep)[-1])
-    shutil.rmtree(disklocation, ignore_errors=True)
+    # remove (sub-)directories previously mounted there
+    os.removedirs(disklocation)
+
+    # recreate the directory
     os.makedirs(disklocation)
 
     backuptimestamp = time.strftime("%Y-%m-%d_%H_%M-%S")
-
-    db = sqlite3.connect(os.path.join(config['backupdir'], 'files.db'))
-    # ensure table is present
-    cur = db.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS files (hash TEXT, backuptime TEXT, source TEXT, target TEXT);")
-    db.commit()
 
     ostype = platform.system()
     fstypes = None
@@ -206,6 +205,12 @@ if __name__ == '__main__':
     # ensure backup directory exists
     os.makedirs(config['backupdir'], exist_ok=True)
 
+    db = sqlite3.connect(os.path.join(config['backupdir'], 'files.db'))
+    # ensure table is present
+    cur = db.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS files (hash TEXT, backuptime TEXT, source TEXT, target TEXT);")
+    db.commit()
+
     while True:
         time.sleep(3)
         current_disks = get_disks()
@@ -229,7 +234,7 @@ if __name__ == '__main__':
                     recheck_disks = get_disks()
                     if disk in recheck_disks:
                         print ("Starting backup of disk {}.".format(disk))
-                        p = Process(target=backup, args=(disk, q))
+                        p = Process(target=backup, args=(disk, q, db))
                         p.start()
                         processes.append((disk, p))
 
