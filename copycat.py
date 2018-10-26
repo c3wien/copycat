@@ -5,6 +5,7 @@ from multiprocessing import Process, Queue
 import platform
 import sqlite3
 import configparser
+import json
 
 cp = configparser.ConfigParser(default_section='copycat')
 
