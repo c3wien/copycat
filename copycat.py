@@ -19,7 +19,8 @@ cp['copycat'] = {
     'verbose': "yes",
 }
 
-with open('config.ini', 'r') as configfile:
+configpath = os.path.join([os.path.dirname(os.path.abspath(__file__)), 'config.ini'])
+with open(configpath, 'r') as configfile:
     cp.read(configfile)
 
 config = cp['copycat']
