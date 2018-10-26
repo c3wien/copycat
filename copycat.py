@@ -85,7 +85,7 @@ def hash_file(file, partial = False):
 
 def copyfile(location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
     if config.getboolean('verbose'):
-        q.put("copying: {} {} {}".format(subdir, file))
+        q.put("copying: {} {}".format(subdir, file))
     elif config.getboolean('debug'):
         q.put("DEBUG: copyfile: {} {} {}".format(location, subdir, file))
     if numtry > 3:
