@@ -179,9 +179,11 @@ def backup(disk, q, db):
             Ex(["mount", "-o", "ro", disk, disklocation])
         # disk name
         disk_name = disk.split(os.sep)[-1]
-        backup_dir(disk_name, disklocation, "", backuptimestamp, q, db)
-        Ex(["umount", disklocation])
-        os.rmdir(disklocation)
+        try:
+            backup_dir(disk_name, disklocation, "", backuptimestamp, q, db)
+        finally:
+            Ex(["umount", disklocation])
+            os.rmdir(disklocation)
     else:
         for partition in partitions:
             if partition == disk:
@@ -198,9 +200,11 @@ def backup(disk, q, db):
                 # Mount with fstype autodetected
                 Ex(["mount", "-o", "ro", partition, partitionlocation])
             time.sleep(2)
-            backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, db)
-            Ex(["umount", partitionlocation])
-            os.rmdir(partitionlocation)
+            try:
+                backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, db)
+            finally:
+                Ex(["umount", partitionlocation])
+                os.rmdir(partitionlocation)
 
 
 if __name__ == '__main__':
