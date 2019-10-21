@@ -1,5 +1,5 @@
-# copycat
-CopyCat
+# CopyCat
+Backups every new attached device to /mnt/copycat
 
 # Filesystem drivers
 ## FreeBSD packages
