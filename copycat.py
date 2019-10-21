@@ -15,6 +15,8 @@ cp['copycat'] = {
     'patterns': json.dumps(["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"]),
     'blacklist': "",
     'hardlink': "yes",
+    'min_free_inodes': 8*1024,
+    'min_free_mib': 10*1024,
     'debug': "no",
     'verbose': "yes",
 }
@@ -84,7 +86,7 @@ def hash_file(file, partial = False):
     return None
 
 
-def copyfile(disk_name, location, subdir, file, backuptimestamp, q, db = None, numtry = 1):
+def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = None, db = None, numtry = 1):
     if config.getboolean('verbose'):
         q.put("copying: {} {}".format(subdir, file))
     elif config.getboolean('debug'):
@@ -122,7 +124,7 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, db = None, n
 
     if pre_copy_file_hash is None or post_copy_file_hash is None or pre_copy_file_hash != post_copy_file_hash:
         # file hash does not match
-        copyfile(disk_name, location, subdir, file, backuptimestamp, q, db, numtry = numtry + 1)
+        copyfile(disk_name, location, subdir, file, backuptimestamp, q, config, db, numtry = numtry + 1)
     else:
         if config.getboolean('verbose'):
             q.put("copied: {}".format(file))
@@ -133,7 +135,7 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, db = None, n
         db.commit()
 
 
-def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
+def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None, db = None):
     sourcedir = os.path.join(srcmount, location)
     backupdir = os.path.join(config['backupdir'], backuptimestamp, disk_name)
     os.makedirs(backupdir, exist_ok=True)
@@ -141,13 +143,13 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, db = None):
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
         nfile = os.path.join(sourcedir,file)
         if os.path.isdir(nfile):
-            backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, db)
+            backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, config, db)
         elif os.path.isfile(nfile):
             subdir = location.lstrip(srcmount).lstrip(os.sep)
-            copyfile(disk_name, srcmount, subdir, file, backuptimestamp, q, db)
+            copyfile(disk_name, srcmount, subdir, file, backuptimestamp, q, config, db)
 
 
-def backup(disk, q, db):
+def backup(disk, q, config, db):
     disklocation = os.path.join(config['mountdir'], disk.split(os.sep)[-1])
     # remove (sub-)directories previously mounted there
     if (os.path.exists(disklocation) and os.path.isdir(disklocation)):
@@ -180,7 +182,7 @@ def backup(disk, q, db):
         # disk name
         disk_name = disk.split(os.sep)[-1]
         try:
-            backup_dir(disk_name, disklocation, "", backuptimestamp, q, db)
+            backup_dir(disk_name, disklocation, "", backuptimestamp, q, config, db)
         finally:
             Ex(["umount", disklocation])
             os.rmdir(disklocation)
@@ -201,7 +203,7 @@ def backup(disk, q, db):
                 Ex(["mount", "-o", "ro", partition, partitionlocation])
             time.sleep(2)
             try:
-                backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, db)
+                backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, config, db)
             finally:
                 Ex(["umount", partitionlocation])
                 os.rmdir(partitionlocation)
@@ -232,11 +234,11 @@ if __name__ == '__main__':
         # check for enough free space
         free_space = get_free_space_in_dir(config['backupdir'])
         # check if there are at least 8192 free inodes
-        if (free_space['inodes_free'] < (8*1024)):
+        if (free_space['inodes_free'] < int(config['min_free_inodes'])):
             print ("WARNING: only {} free inodes for backuptarget {}!".format(free_space['inodes_free'], config['backupdir']))
         # check if at least 1GB is free
-        if (free_space['bytes_avail'] < (10*1024*1024*1024)):
-            free_mib = free_space['bytes_avail'] / 1024 / 1024
+        free_mib = free_space['bytes_avail'] / 1024 / 1024
+        if (free_mib < int(config['min_free_mib'])):
             print ("WARNING: only {} MiB free for backuptarget {}!".format(free_mib, config['backupdir']))
         # iterate over known disks
         for disk in current_disks:
@@ -246,7 +248,7 @@ if __name__ == '__main__':
                     recheck_disks = get_disks()
                     if disk in recheck_disks:
                         print ("Starting backup of disk {}.".format(disk))
-                        p = Process(target=backup, args=(disk, q, db))
+                        p = Process(target=backup, args=(disk, q, config, db))
                         p.start()
                         processes.append((disk, p))
 
