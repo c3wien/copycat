@@ -234,6 +234,9 @@ if __name__ == '__main__':
     processes = []
     q = Queue()
     last_disks = get_disks(config)
+
+    print ("CopyCat is ready. Insert your storage devices!")
+
     if config.getboolean('debug'):
         print ("Disks already there at startup: {}".format(last_disks))
 
