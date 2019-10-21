@@ -145,7 +145,10 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
         if os.path.isdir(nfile):
             backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, config, db)
         elif os.path.isfile(nfile):
-            subdir = location.lstrip(srcmount).lstrip(os.sep)
+            if location.find(srcmount) == 0:
+                subdir = location[len(srcmount):].lstrip(os.sep)
+            else:
+                subdir = location.lstrip(os.sep)
             copyfile(disk_name, srcmount, subdir, file, backuptimestamp, q, config, db)
 
 
