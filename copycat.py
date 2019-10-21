@@ -153,7 +153,7 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
 
 
 def backup(disk, q, config, db):
-    disklocation = os.path.join(config['mountdir'], disk.split(os.sep)[-1])
+    disklocation = os.path.join(config.get('mountdir'), disk.split(os.sep)[-1])
     # remove (sub-)directories previously mounted there
     if (os.path.exists(disklocation) and os.path.isdir(disklocation)):
         os.removedirs(disklocation)
@@ -220,9 +220,9 @@ if __name__ == '__main__':
         print ("Disks already there at startup: {}".format(last_disks))
 
     # ensure backup directory exists
-    os.makedirs(config['backupdir'], exist_ok=True)
+    os.makedirs(config.get('backupdir'), exist_ok=True)
 
-    db = sqlite3.connect(os.path.join(config['backupdir'], 'files.db'))
+    db = sqlite3.connect(os.path.join(config.get('backupdir'), 'files.db'))
     # ensure table is present
     cur = db.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS files (hash TEXT, backuptime TEXT, source TEXT, target TEXT);")
@@ -235,18 +235,18 @@ if __name__ == '__main__':
         if config.getboolean('debug'):
             print ("Disks known: {}".format(current_disks))
         # check for enough free space
-        free_space = get_free_space_in_dir(config['backupdir'])
+        free_space = get_free_space_in_dir(config.get('backupdir'))
         # check if there are at least 8192 free inodes
-        if (free_space['inodes_free'] < int(config['min_free_inodes'])):
-            print ("WARNING: only {} free inodes for backuptarget {}!".format(free_space['inodes_free'], config['backupdir']))
+        if (free_space['inodes_free'] < config.getint('min_free_inodes')):
+            print ("WARNING: only {} free inodes for backuptarget {}!".format(free_space['inodes_free'], config.get('backupdir')))
         # check if at least 1GB is free
         free_mib = free_space['bytes_avail'] / 1024 / 1024
-        if (free_mib < int(config['min_free_mib'])):
-            print ("WARNING: only {} MiB free for backuptarget {}!".format(free_mib, config['backupdir']))
+        if (free_mib < int(config.get('min_free_mib'))):
+            print ("WARNING: only {} MiB free for backuptarget {}!".format(free_mib, config.get('backupdir')))
         # iterate over known disks
         for disk in current_disks:
             if disk not in last_disks:
-                if disk not in config['blacklist']:
+                if disk not in config.get('blacklist'):
                     time.sleep(3)
                     recheck_disks = get_disks()
                     if disk in recheck_disks:
