@@ -7,26 +7,7 @@ import sqlite3
 import configparser
 import json
 
-cp = configparser.ConfigParser(default_section='copycat')
-
-cp['copycat'] = {
-    'backupdir': "/mnt/copycat",
-    'mountdir': "/media/copycat",
-    'patterns': json.dumps(["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"]),
-    'blacklist': "",
-    'hardlink': "yes",
-    'min_free_inodes': 8*1024,
-    'min_free_mib': 10*1024,
-    'debug': "no",
-    'verbose': "yes",
-}
-
-configpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
-cp.read(configpath)
-
-config = cp['copycat']
-
-def Ex(command):
+def Ex(command, config):
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     c = p.communicate()
     if config.getboolean('debug'):
@@ -47,7 +28,7 @@ def get_free_space_in_dir(dir):
     state['bytes_avail'] = statfs.f_bavail * statfs.f_bsize
     return state
 
-def get_disks():
+def get_disks(config):
     disks = []
     patterns = json.loads(config.get('patterns'))
     for pattern in patterns:
@@ -93,7 +74,7 @@ def copylink(disk_name, location, subdir, file, backuptimestamp, q, config = Non
 
     if config.getboolean('verbose'):
         q.put("linking: {} {} (to {})".format(subdir, file, linkdest))
-    Ex(["ln", "-snf", linkdest, dest])
+    Ex(["ln", "-snf", linkdest, dest], config)
 
 def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = None, db = None, numtry = 1):
     if config.getboolean('verbose'):
@@ -123,12 +104,12 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = Non
             existingfile = db_hash_table[pre_copy_file_hash]
             if config.getboolean('debug'):
                 q.put("DEBUG: ln {} {}".format(existingfile, dest))
-            Ex(["ln", existingfile, dest])
+            Ex(["ln", existingfile, dest], config)
             return
 
     if config.getboolean('debug'):
         q.put("DEBUG: {}".format(" ".join(["cp", "-a", src, dest])))
-    Ex(["cp", "-a", src, dest])
+    Ex(["cp", "-a", src, dest], config)
     post_copy_file_hash = hash_file(dest, hash_is_partial)
 
     if pre_copy_file_hash is None or post_copy_file_hash is None or pre_copy_file_hash != post_copy_file_hash:
@@ -194,16 +175,16 @@ def backup(disk, q, config, db):
         q.put("Mount and backup disk {}.".format(disk))
         if (fstypes is not None):
             # Mount with specific fstypes enabled
-            Ex(["mount", "-t", fstypes, "-o", "ro", disk, disklocation])
+            Ex(["mount", "-t", fstypes, "-o", "ro", disk, disklocation], config)
         else:
             # Mount with fstype autodetected
-            Ex(["mount", "-o", "ro", disk, disklocation])
+            Ex(["mount", "-o", "ro", disk, disklocation], config)
         # disk name
         disk_name = disk.split(os.sep)[-1]
         try:
             backup_dir(disk_name, disklocation, "", backuptimestamp, q, config, db)
         finally:
-            Ex(["umount", disklocation])
+            Ex(["umount", disklocation], config)
             os.rmdir(disklocation)
     else:
         for partition in partitions:
@@ -216,22 +197,43 @@ def backup(disk, q, config, db):
             q.put("Mount and backup partition {}.".format(partition))
             if (fstypes is not None):
                 # Mount with specific fstypes enabled
-                Ex(["mount", "-t", fstypes, "-o", "ro", partition, partitionlocation])
+                Ex(["mount", "-t", fstypes, "-o", "ro", partition, partitionlocation], config)
             else:
                 # Mount with fstype autodetected
-                Ex(["mount", "-o", "ro", partition, partitionlocation])
+                Ex(["mount", "-o", "ro", partition, partitionlocation], config)
             time.sleep(2)
             try:
                 backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, config, db)
             finally:
-                Ex(["umount", partitionlocation])
+                Ex(["umount", partitionlocation], config)
                 os.rmdir(partitionlocation)
 
 
 if __name__ == '__main__':
+    # read config.ini
+    cp = configparser.ConfigParser(default_section='copycat')
+
+    # default options
+    cp['copycat'] = {
+        'backupdir': "/mnt/copycat",
+        'mountdir': "/media/copycat",
+        'patterns': json.dumps(["/dev/sd?", "/dev/mmcblk?", "/dev/da?", "/dev/ada?"]),
+        'blacklist': "",
+        'hardlink': "yes",
+        'min_free_inodes': 8*1024,
+        'min_free_mib': 10*1024,
+        'debug': "no",
+        'verbose': "yes",
+    }
+
+    configpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
+    cp.read(configpath)
+
+    config = cp['copycat']
+
     processes = []
     q = Queue()
-    last_disks = get_disks()
+    last_disks = get_disks(config)
     if config.getboolean('debug'):
         print ("Disks already there at startup: {}".format(last_disks))
 
@@ -246,7 +248,7 @@ if __name__ == '__main__':
 
     while True:
         time.sleep(3)
-        current_disks = get_disks()
+        current_disks = get_disks(config)
         # show current state of disk list
         if config.getboolean('debug'):
             print ("Disks known: {}".format(current_disks))
@@ -264,7 +266,7 @@ if __name__ == '__main__':
             if disk not in last_disks:
                 if disk not in config.get('blacklist'):
                     time.sleep(3)
-                    recheck_disks = get_disks()
+                    recheck_disks = get_disks(config)
                     if disk in recheck_disks:
                         print ("Starting backup of disk {}.".format(disk))
                         p = Process(target=backup, args=(disk, q, config, db))
@@ -284,19 +286,19 @@ if __name__ == '__main__':
             if process.exitcode is None:
                 still_running.append((disk, process))
             elif process.exitcode == 0:
-                Ex(['sync'])
+                Ex(['sync'], config)
                 print ("Backup of disk {} has finished.".format(disk))
                 continue
             elif process.exitcode < 0:
-                Ex(['sync'])
+                Ex(['sync'], config)
                 print ("Backup process died from signal {}".format(process.exitcode))
                 continue
             elif process.exitcode > 0:
-                Ex(['sync'])
+                Ex(['sync'], config)
                 print ("Backup process terminated with exit code {}".format(process.exitcode))
                 continue
             else:
-                Ex(['sync'])
+                Ex(['sync'], config)
                 print ("Unknown exitcode: {}".format(process.exitcode))
         processes = still_running
         last_disks = current_disks
