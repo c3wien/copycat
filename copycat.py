@@ -86,7 +86,7 @@ def hash_file(file, partial = False):
     return None
 
 def copylink(disk_name, location, subdir, file, backuptimestamp, q, config = None, db = None, numtry = 1):
-    backuplocation = os.path.join(config['backupdir'], backuptimestamp, disk_name)
+    backuplocation = os.path.join(config.get('backupdir'), backuptimestamp, disk_name)
     linkdest = os.readlink(os.path.join(location, subdir, file))
     dest = os.path.join(backuplocation, subdir, file)
     os.makedirs(os.path.join(backuplocation, subdir), exist_ok=True)
@@ -103,7 +103,7 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = Non
     if numtry > 3:
         q.put("Could not copy {}".format(os.path.join(location, subdir, file)))
         return
-    backuplocation = os.path.join(config['backupdir'], backuptimestamp, disk_name)
+    backuplocation = os.path.join(config.get('backupdir'), backuptimestamp, disk_name)
     src = os.path.join(location, subdir, file)
     dest = os.path.join(backuplocation, subdir, file)
     os.makedirs(os.path.join(backuplocation, subdir), exist_ok=True)
@@ -146,7 +146,7 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = Non
 
 def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None, db = None):
     sourcedir = os.path.join(srcmount, location)
-    backupdir = os.path.join(config['backupdir'], backuptimestamp, disk_name)
+    backupdir = os.path.join(config.get('backupdir'), backuptimestamp, disk_name)
     os.makedirs(backupdir, exist_ok=True)
 
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
