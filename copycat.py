@@ -85,6 +85,15 @@ def hash_file(file, partial = False):
         return m.hexdigest()
     return None
 
+def copylink(disk_name, location, subdir, file, backuptimestamp, q, config = None, db = None, numtry = 1):
+    backuplocation = os.path.join(config['backupdir'], backuptimestamp, disk_name)
+    linkdest = os.readlink(os.path.join(location, subdir, file))
+    dest = os.path.join(backuplocation, subdir, file)
+    os.makedirs(os.path.join(backuplocation, subdir), exist_ok=True)
+
+    if config.getboolean('verbose'):
+        q.put("linking: {} {} (to {})".format(subdir, file, linkdest))
+    Ex(["ln", "-snf", linkdest, dest])
 
 def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = None, db = None, numtry = 1):
     if config.getboolean('verbose'):
@@ -142,7 +151,11 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
 
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
         nfile = os.path.join(sourcedir,file)
-        if os.path.isdir(nfile):
+        if os.path.islink(nfile):
+            # don't copy symlinks, but re-link
+            copylink(disk_name, srcmount, subdir, file, backuptimestamp, q, config, db)
+            continue
+        elif os.path.isdir(nfile):
             backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, config, db)
         elif os.path.isfile(nfile):
             if location.find(srcmount) == 0:
