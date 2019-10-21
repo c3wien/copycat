@@ -153,8 +153,11 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
         nfile = os.path.join(sourcedir,file)
         if os.path.islink(nfile):
             # don't copy symlinks, but re-link
+            if location.find(srcmount) == 0:
+                subdir = location[len(srcmount):].lstrip(os.sep)
+            else:
+                subdir = location.lstrip(os.sep)
             copylink(disk_name, srcmount, subdir, file, backuptimestamp, q, config, db)
-            continue
         elif os.path.isdir(nfile):
             backup_dir(disk_name, srcmount, nfile, backuptimestamp, q, config, db)
         elif os.path.isfile(nfile):
