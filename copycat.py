@@ -52,12 +52,14 @@ def get_disks():
         patterndisks = glob.glob(pattern)
         for disk in patterndisks:
             disks.append(disk)
+    disks.sort()
     return disks
 
 
 def get_partitions(disk):
     partitions = glob.glob("{}*".format(disk))
     partitions = [p for p in partitions if p != disk]
+    partitions.sort()
     return partitions
 
 
