@@ -20,8 +20,7 @@ cp['copycat'] = {
 }
 
 configpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
-with open(configpath, 'r') as configfile:
-    cp.read(configfile)
+cp.read(configpath)
 
 config = cp['copycat']
 
