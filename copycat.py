@@ -152,7 +152,7 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
             copyfile(disk_name, srcmount, subdir, file, backuptimestamp, q, config, db)
 
 
-def backup(disk, q, config, db):
+def backup_part(disk, disktype, backuptimestamp, q, config, db):
     disklocation = os.path.join(config.get('mountdir'), disk.split(os.sep)[-1])
     # remove (sub-)directories previously mounted there
     if (os.path.exists(disklocation) and os.path.isdir(disklocation)):
@@ -160,8 +160,6 @@ def backup(disk, q, config, db):
 
     # recreate the directory
     os.makedirs(disklocation)
-
-    backuptimestamp = time.strftime("%Y-%m-%d_%H_%M-%S")
 
     ostype = platform.system()
     fstypes = None
@@ -172,44 +170,34 @@ def backup(disk, q, config, db):
         # fusefs-ntfs: ntfs (pkg: fusefs-ntfs)
         fstypes = "msdosfs,exfat,ntfs"
 
+    q.put("Mount and backup {} {}.".format(disktype, disk))
+
+    if (fstypes is not None):
+        # Mount with specific fstypes enabled
+        Ex(["mount", "-t", fstypes, "-o", "ro", disk, disklocation], config)
+    else:
+        # Mount with fstype autodetected
+        Ex(["mount", "-o", "ro", disk, disklocation], config)
+    time.sleep(1)
+
+    # disk name
+    disk_name = disk.split(os.sep)[-1]
+    try:
+        backup_dir(disk_name, disklocation, "", backuptimestamp, q, config, db)
+    finally:
+        Ex(["umount", disklocation], config)
+        os.rmdir(disklocation)
+
+
+def backup(disk, q, config, db):
+    backuptimestamp = time.strftime("%Y-%m-%d_%H_%M-%S")
     partitions = get_partitions(disk)
     
     if len(partitions) == 0:
-        q.put("Mount and backup disk {}.".format(disk))
-        if (fstypes is not None):
-            # Mount with specific fstypes enabled
-            Ex(["mount", "-t", fstypes, "-o", "ro", disk, disklocation], config)
-        else:
-            # Mount with fstype autodetected
-            Ex(["mount", "-o", "ro", disk, disklocation], config)
-        # disk name
-        disk_name = disk.split(os.sep)[-1]
-        try:
-            backup_dir(disk_name, disklocation, "", backuptimestamp, q, config, db)
-        finally:
-            Ex(["umount", disklocation], config)
-            os.rmdir(disklocation)
+        backup_part(disk, "disk", backuptimestamp, q, config, db)
     else:
         for partition in partitions:
-            if partition == disk:
-                continue
-            partition_name = partition.split(os.sep)[-1]
-            partitionlocation = os.path.join(disklocation, partition_name)
-            os.mkdir(partitionlocation)
-
-            q.put("Mount and backup partition {}.".format(partition))
-            if (fstypes is not None):
-                # Mount with specific fstypes enabled
-                Ex(["mount", "-t", fstypes, "-o", "ro", partition, partitionlocation], config)
-            else:
-                # Mount with fstype autodetected
-                Ex(["mount", "-o", "ro", partition, partitionlocation], config)
-            time.sleep(2)
-            try:
-                backup_dir(partition_name, partitionlocation, "", backuptimestamp, q, config, db)
-            finally:
-                Ex(["umount", partitionlocation], config)
-                os.rmdir(partitionlocation)
+            backup_part(partition, "partition", backuptimestamp, q, config, db)
 
 
 if __name__ == '__main__':
