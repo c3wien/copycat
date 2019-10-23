@@ -132,7 +132,10 @@ def backup_dir(disk_name, srcmount, location, backuptimestamp, q, config = None,
 
     for file in [file for file in os.listdir(sourcedir) if not file in [".",".."]]:
         nfile = os.path.join(sourcedir,file)
-        if os.path.islink(nfile):
+        if file[0] == "." and config.getboolean("copy_dotfiles") == False:
+            # don't copy hidden files/dot files if not explicitely enabled
+            continue
+        elif os.path.islink(nfile):
             # don't copy symlinks, but re-link
             if location.find(srcmount) == 0:
                 subdir = location[len(srcmount):].lstrip(os.sep)
@@ -222,6 +225,7 @@ if __name__ == '__main__':
         'hardlink': "yes",
         'min_free_inodes': 8*1024,
         'min_free_mib': 10*1024,
+        'copy_dotfiles': "no",
         'debug': "no",
         'verbose': "yes",
     }
