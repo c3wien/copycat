@@ -99,9 +99,11 @@ def copyfile(disk_name, location, subdir, file, backuptimestamp, q, config = Non
     pre_copy_file_hash = hash_file(src, hash_is_partial)
 
     if config.getboolean('hardlink'):
-        db_hash_table = ['TODO']
-        if pre_copy_file_hash in db_hash_table:
-            existingfile = db_hash_table[pre_copy_file_hash]
+        cur = db.cursor()
+        cur.execute("SELECT target FROM files WHERE hash = ? LIMIT 1;", (pre_copy_file_hash,))
+        row = cur.fetchone()
+        if row is not None:
+            existingfile = row[0]
             if config.getboolean('debug'):
                 q.put("DEBUG: ln {} {}".format(existingfile, dest))
             Ex(["ln", existingfile, dest], config)
